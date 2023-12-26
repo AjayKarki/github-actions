@@ -1,0 +1,46 @@
+name: Manager Deployment
+description: Deploy Manager node
+inputs:
+  VAULT_URL:
+    description: Vault URL
+    required: true
+  VAULT_TOKEN:
+    description: VAULT_TOKEN
+    required: true
+  VAULT_SECRET_PATH:
+    description: Secret Path
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Checkout Repository
+    uses: actions/checkout@v3
+  
+  - name: Export Secrets
+    uses: hashicorp/vault-action@v2
+    with:
+      url: https://${{ inputs.VAULT_URL }}
+      token: ${{ inputs.VAULT_TOKEN }}
+      tlsSkipVerify: true
+      secrets: |
+          ${{ inputs.VAULT_SECRET_PATH }} SSH_PRIVATE_KEY | SSH_PRIVATE_KEY;
+          ${{ inputs.VAULT_SECRET_PATH }} MANAGER_NODE_IP | MANAGER_NODE_IP;
+          ${{ inputs.VAULT_SECRET_PATH }} PROJECT_NAME | PROJECT_NAME;
+
+  - name: Install SSH Key
+    uses: shimataro/ssh-key-action@v2
+    with:
+      key: ${{ env.SSH_PRIVATE_KEY }}
+      known_hosts: 'SSH Key'
+      if_key_exists: replace
+  
+  - name: Adding Known Hosts
+    run: |
+      ssh-keyscan -H ${{ env.MANAGER_NODE_IP }} >> ~/.ssh/known_hosts
+    shell: bash
+  
+  - name: Rsync to Manager Node
+    run: |
+      rsync -avPz --exclude ".git" --exclude ".gitignore" ./ root@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
+    shell: bash

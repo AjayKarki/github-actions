@@ -1,0 +1,83 @@
+name: Static Code Analysis
+description: Static Code Analysis with Sonarqube
+inputs:
+  PROJECT_NAME:
+    description: Project Name
+    required: true
+  VAULT_ENABLED:
+    description: Enable if VAULT is used for secrets
+    type: boolean
+    default: false
+  VAULT_SERVER:
+    description: VAULT Server
+    type: string
+  VAULT_SECRETS_PATH:
+    description: VAULT secrets path
+    type: string
+  VAULT_TOKEN:
+    description: VAULT Token
+    type: string
+  SONARQUBE_HOST:
+    description: Sonarqube Host
+    type: string
+  SONARQUBE_TOKEN:
+    description: Sonarqube Token
+    type: string
+  GITHUB_TOKEN:
+    description: Github Token
+    type: string
+outputs:
+  quality_check:
+    description: >
+      The resulting Status SonarQube 
+
+runs:
+  using: composite
+  steps:
+    - name: Import Secrets
+      if: ${{ inputs.VAULT_ENABLED == 'true' }}
+      uses: hashicorp/vault-action@v2.4.0
+      with:
+        url: ${{ inputs.VAULT_SERVER }}
+        token: ${{ inputs.VAULT_TOKEN }}
+        tlsSkipVerify: true
+        secrets: |
+          ${{ inputs.VAULT_SECRETS_PATH }} SONARQUBE_HOST | SONARQUBE_HOST;
+          ${{ inputs.VAULT_SECRETS_PATH }} SONARQUBE_TOKEN | SONARQUBE_TOKEN;
+          ${{ inputs.VAULT_SECRETS_PATH }} SONARQUBE_ORGANIZATION | SONARQUBE_ORGANIZATION
+
+    - name: Import Secrets
+      if: ${{ inputs.VAULT_ENABLED == 'false' }}
+      run: |
+        echo "SONARQUBE_HOST=${{ inputs.SONARQUBE_HOST }}"  >> $GITHUB_ENV
+        echo "SONARQUBE_TOKEN=${{ inputs.SONARQUBE_TOKEN }}"  >> $GITHUB_ENV
+        echo "SONARQUBE_ORGANIZATION=${{ inputs.SONARQUBE_ORGANIZATION }}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup SonarQube
+      uses: warchant/setup-sonar-scanner@v7
+
+    - name: SonarQube Scan
+      run: sonar-scanner
+        -Dsonar.host.url=${{ env.SONARQUBE_HOST }}
+        -Dsonar.login=${{ env.SONARQUBE_TOKEN }}
+        -Dsonar.organization=${{ env.SONARQUBE_ORGANIZATION }}
+        -Dsonar.projectKey=${{ inputs.PROJECT_NAME }}
+        -Dsonar.sources=${{ github.workspace }}
+      shell: bash
+
+    - name: SonarQube Quality Gate check
+      id: sonarqube-quality-gate-check
+      uses: sonarsource/sonarqube-quality-gate-action@master
+      env:
+       SONAR_TOKEN: ${{ env.SONARQUBE_TOKEN }}
+       SONAR_HOST_URL: ${{ env.SONARQUBE_HOST }}
+
+    - name: Scan Report
+      run: |
+        cat .scannerwork/report-task.txt
+      shell: bash
+

@@ -1,0 +1,147 @@
+name: Workflow to call Actions
+on:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      security-events: write
+      pull-requests: write
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    env:
+      POSTGRES_USER: "demoproject"
+      POSTGRES_PASSWORD: "demoproject123"
+      POSTGRES_DB: "demoproject"
+      FAIL_LEVEL: ERROR
+      ENV_TYPE: venv
+      APP_PATH: ./app
+      DEP_PATH: ./app/requirements.txt
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+        - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+      sonarqube:
+        image: sonarqube:9.9.3-community
+        ports:
+          - 9000:9000
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Python Unit Testing
+      #uses: ./.github/actions/unit_test
+      uses: kwati/github-actions/.github/actions/unit-testing/python@main
+      with:
+        PROJECT_NAME: ${{ github.repository }}
+        PYTHON_VERSION: ${{ matrix.python-version }}
+        PYTHON_DEP_PATH: ${{ env.DEP_PATH }}
+        PROJECT_APP_PATH: ${{ env.APP_PATH }}
+        SETTINGS_DB_PORT: 5432
+        SETTINGS_DB_NAME: ${{ env.POSTGRES_DB }}
+        SETTINGS_DB_USER: ${{ env.POSTGRES_USER }}
+        SETTINGS_DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+
+    - name: Snyk Software Composition Analysis
+      #uses: ./.github/actions/security
+      uses: kwati/github-actions/.github/actions/security/snyk-sca@main
+      with:
+        PROJECT_NAME: "django-cicd"
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        PYTHON_VERSION: ${{ matrix.python-version }}
+        PYTHON_DEP_PATH: ${{ env.DEP_PATH }}
+        PROJECT_APP_PATH: ${{ env.APP_PATH }}
+
+    - name: Generate Sonarqube Token
+      run: |
+        SONARQUBE_TOKEN=$(curl -s -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "name=admin" \
+          -u admin:admin http://localhost:9000/api/user_tokens/generate | jq -r .token)
+        echo "SONARQUBE_TOKEN=$SONARQUBE_TOKEN" >> $GITHUB_ENV
+
+    - name: Sonarqube Static Application Security Testing
+      uses: kwati/github-actions/.github/actions/security/sast@main
+      with:
+        PROJECT_NAME: "django-cicd"
+        VAULT_ENABLED: false
+        VAULT_SERVER: "http://localhost"
+        VAULT_SECRETS_PATH: "app/django-cicd"
+        VAULT_TOKEN: ""
+        SONARQUBE_HOST: "http://localhost:9000"
+        SONARQUBE_TOKEN: ${{ env.SONARQUBE_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Build Docker Image
+      uses: kwati/github-actions/.github/actions/build/docker@main
+      with:
+        DOCKERFILE: 'Dockerfile'
+        BUILD_CONTEXT: '.'
+        IMAGE_REPOSITORY: "dockerhub.khalti.office:5000"
+        ENVIRONMENT: 'prod'
+        IMAGE_TAG: ${{ github.run_number }}
+
+  cd:
+    runs-on: ubuntu-latest
+    steps:
+      deploy:
+      runs-on: [self-hosted, dcrunner1]
+      needs: build
+      steps:
+      - name: checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Deploy Manager Node
+        uses: kwati/github-actions/.github/actions/deploy/manager@main
+        with:
+          VAULT_URL: "vault.khalti.com.np"
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_SECRET_PATH: "kwati/silkroad/manager/prod" # [SSH_PRIVATE_KEY, MANAGER_NODE_IP, PROJECT_NAME]
+
+      - name: Deploy Kubernetes Helm Chart
+        uses: kwati/github-actions/.github/actions/deploy/k8s@main
+        with:
+          VAULT_URL: "vault.khalti.com.np"
+          IMAGE_TAG: ${{ github.run_number }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_SECRET_PATH: "kwati/silkroad/dev" # [ENVIRONMENT, MASTER_IP, NODE_PORT, PROJECT_NAME, VERSION, ECR_REPOSITORY]
+          VAULT_SECRET_COMMON_PATH: "infra/cicd/common"  # [REGISTRY, AWS_ACCESS_KEY_ID_ECR, AWS_SECRET_ACCESS_KEY_ECR, SSH_KEY, LOGSTASH_IP]
+
+      - name: Deploy to Swarm Cluster
+        uses: kwati/github-actions/.github/actions/deploy/swarm@main
+        with:
+          VAULT_URL: "vault.khalti.com.np"
+          IMAGE_TAG: ${{ github.run_number }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_SECRET_PATH: "kwati/silkroad/dev" # [ENVIRONMENT, IMAGE_REPOSITORY, PROJECT_NAME, DOCKER_CLUSTER, DOCKER_HOST, DOCKER_PORT]
+          VAULT_SECRET_COMMON_PATH: "infra/cicd/common"  # []
+
+    - name: Send Mail
+      if: always()
+      uses: dawidd6/action-send-mail@v3.7.1
+      with:
+        server_address: ${{ env.EMAIL_HOST }}
+        server_port: ${{ env.EMAIL_PORT }}
+        username: ${{ env.EMAIL_HOST_USER }}
+        password: ${{ env.EMAIL_HOST_PASSWORD }}
+        subject: "Workflow ${{ job.status }}: ${{ github.repository }}/${{ github.workflow }}"
+        body: |
+            Status: ${{ job.status }}
+            CommitID: ${{ github.sha }} 
+            CommitMSG: ${{ github.event.head_commit.message }}
+            Author: ${{ github.actor }}
+            Timestamp: ${{ github.event.head_commit.timestamp }}
+        from: '"deployment" <deployment@khalti.com>'
+        to: ${{ env.TO_ADDRESS }}
+

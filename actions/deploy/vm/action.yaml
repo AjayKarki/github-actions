@@ -1,0 +1,59 @@
+name: Node Deployment
+description: Deploy Application node
+inputs:
+  VAULT_URL:
+    description: Vault URL
+    required: true
+  VAULT_TOKEN:
+    description: VAULT_TOKEN
+    required: true
+  VAULT_SECRET_PATH:
+    description: Secret Path
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Import Secrets
+      uses: hashicorp/vault-action@v2.4.0
+      with:
+        url: https://${{ inputs.VAULT_URL }}
+        token: ${{ inputs.VAULT_TOKEN }}
+        tlsSkipVerify: true
+        secrets: |
+          ${{inputs.VAULT_SECRET_PATH}} ENVIRONMENT | ENVIRONMENT;
+          ${{inputs.VAULT_SECRET_PATH}} IMAGE_REPOSITORY | IMAGE_REPOSITORY;
+          ${{inputs.VAULT_SECRET_PATH}} PROJECT_NAME | PROJECT_NAME;
+          ${{inputs.VAULT_SECRET_PATH}} DOCKER_CLUSTER | DOCKER_CLUSTER;
+          ${{inputs.VAULT_SECRET_PATH}} DOCKER_HOST | DOCKER_HOST;
+          ${{inputs.VAULT_SECRET_PATH}} DOCKER_PORT | DOCKER_PORT;
+          ${{inputs.VAULT_SECRET_PATH}} SSH_PRIVATE_KEY | SSH_PRIVATE_KEY;
+          ${{inputs.VAULT_SECRET_PATH}} SERVER | SERVER;
+          ${{inputs.VAULT_SECRET_PATH}} PROJECT_DIR | PROJECT_DIR
+
+    - name: Checkout
+      uses: actions/checkout@v2 
+
+    - name: Create .env file
+      run: |
+        curl -sk -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}"  https://${{ inputs.VAULT_URL }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
+        cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env
+        cp .env ./app/.env
+
+    - name: Install SSH Key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ env.SSH_PRIVATE_KEY }} 
+        known_hosts: 'SSH KEY'
+        if_key_exists: replace
+
+    - name: Adding Known Hosts
+      run: |
+        ssh-keyscan -H ${{ env.SERVER }} >> ~/.ssh/known_hosts
+
+    - name: Deploy latest version to server
+      run: |
+        mv ./app/core/settings/local_settings.py.sample ./app/core/settings/local_settings.py
+        rsync -avzP --exclude ".git" --exclude ".gitignore" ./ root@${{ env.SERVER }}:${{ env.PROJECT_DIR }}/
+        ssh root@${{ env.SERVER }} "cd ${{ env.PROJECT_DIR }}/app && /srv/envs/doorbin/bin/pip install -r requirements.txt"
+        ssh root@${{ env.SERVER }} "supervisorctl signal hup all"

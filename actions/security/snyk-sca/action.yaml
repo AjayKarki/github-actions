@@ -1,0 +1,53 @@
+name: Software Composition Analysis with Snyk
+description: Run Software Composition Analysis with Snyk
+inputs:
+  PROJECT_NAME:
+    description: Project Name
+    required: true
+  SNYK_TOKEN:
+    description: Snyk API Token
+    required: true
+    default:  ""
+  PYTHON_VERSION:
+    description: Python Version
+    required: true
+    default: "3.10"
+  PYTHON_DEP_PATH:
+    description: Path for the Python Dependencies file
+    required: true
+    default: "./app/requirements.txt"
+  PROJECT_APP_PATH:
+    description: Application Project Root Path
+    required: true
+    default: "./app"
+
+runs:
+  using: composite
+  steps:
+    - name: CheckOut Actions
+      uses: actions/checkout@v3
+
+    - name: Setup Python ${{ inputs.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.PYTHON_VERSION }}
+        cache: "pip"
+
+    - name: Install requirements
+      run: |
+        pip install --upgrade pip
+        pip install -r ${{ inputs.PYTHON_DEP_PATH }}
+      shell: bash
+
+    - name: Run Snyk to check for vulnerabilities
+      run: |
+        wget -q https://static.snyk.io/cli/latest/snyk-linux && mv ./snyk-linux ./snyk && chmod +x ./snyk
+        ./snyk auth ${{ inputs.SNYK_TOKEN }}
+        ./snyk test --command=python3 --project-name=${{ inputs.PROJECT_NAME }} --sarif-file-output=snyk.sarif
+      working-directory: ${{ inputs.PROJECT_APP_PATH }}
+      shell: bash
+       
+    - name: Upload result to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: ${{ inputs.PROJECT_APP_PATH }}/snyk.sarif

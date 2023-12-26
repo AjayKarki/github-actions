@@ -1,0 +1,59 @@
+name: Docker Swarm Deployment
+description: Deploy application to Swarm Cluster
+inputs:
+  VAULT_URL:
+    description: Build Image Tag
+    required: true
+  VAULT_TOKEN: 
+    description: Vault Token
+    required: true
+  VAULT_SECRET_PATH:
+    description: Dev Secret Path
+    required: true
+  VAULT_SECRET_COMMON_PATH:
+    description: K8s common Secret Path
+    required: true
+  IMAGE_TAG:
+    description: Image Tag
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Import Secrets
+      uses: hashicorp/vault-action@v2.4.0
+      with:
+        url: https://${{ inputs.VAULT_URL }}
+        token: ${{ inputs.VAULT_TOKEN }}
+        tlsSkipVerify: true
+        secrets: |
+          ${{inputs.VAULT_SECRET_PATH}} ENVIRONMENT | ENVIRONMENT;
+          ${{inputs.VAULT_SECRET_PATH}} IMAGE_REPOSITORY | IMAGE_REPOSITORY;
+          ${{inputs.VAULT_SECRET_PATH}} PROJECT_NAME | PROJECT_NAME;
+          ${{inputs.VAULT_SECRET_PATH}} DOCKER_CLUSTER | DOCKER_CLUSTER;
+          ${{inputs.VAULT_SECRET_PATH}} DOCKER_HOST | DOCKER_HOST;
+          ${{inputs.VAULT_SECRET_PATH}} DOCKER_PORT | DOCKER_PORT;
+
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    - name: Create .env file
+      run: |
+        curl -sk -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}"  https://${{ inputs.VAULT_URL }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
+        cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env
+    
+    - name: Add docker context
+      run: |
+        /usr/local/bin/docker context use ${{env.DOCKER_CLUSTER}} || /usr/local/bin/docker context create ${{env.DOCKER_CLUSTER}} --description "Docker Swarm ${{env.DOCKER_CLUSTER}}" --docker "host=tcp://${{env.DOCKER_HOST}}:${{env.DOCKER_PORT}}"
+
+    - name: Create Docker Config
+      run: |
+        /usr/local/bin/docker --context ${{env.DOCKER_CLUSTER}} config create ${{env.PROJECT_NAME}}-${{ inputs.IMAGE_TAG }} .env
+
+    - name: Deploy docker stack
+      run: |
+        env $(cat ./.env | xargs) /usr/local/bin/docker --context ${{env.DOCKER_CLUSTER}} stack deploy -c ./docker-compose-${{env.ENVIRONMENT}}.yml --resolve-image changed ${{env.PROJECT_NAME}}
+        /usr/local/bin/docker --context ${{env.DOCKER_CLUSTER}} pull ${{env.IMAGE_REPOSITORY}}/kwati/${{ env.PROJECT_NAME }}-${{env.ENVIRONMENT}}:${{ inputs.IMAGE_TAG }}
+        /usr/local/bin/docker --context ${{env.DOCKER_CLUSTER}} service update --config-rm ${{env.PROJECT_NAME}}-${{env.PREV_CONFIG}} \
+            --config-add source=${{env.PROJECT_NAME}}-${{ inputs.IMAGE_TAG }},target=./app/.env \
+            --image ${{env.IMAGE_REPOSITORY}}/kwati/${{ env.PROJECT_NAME }}-${{env.ENVIRONMENT}}:${{ inputs.IMAGE_TAG }} ${{env.PROJECT_NAME}}_app --force
+        /usr/local/bin/docker context use default

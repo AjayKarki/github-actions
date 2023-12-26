@@ -1,0 +1,37 @@
+name: Build Docker Image
+description: Build and Push Docker Image
+inputs:
+  DOCKERFILE:
+    description: Dockerfile name
+    required: true
+    type: string
+    default: 'Dockerfile'
+  BUILD_CONTEXT:
+    description: Docker build context
+    required: true
+    type: string
+    default: '.'
+  IMAGE_REPOSITORY:
+    description: Image Repository
+    required: true
+  ENVIRONMENT:
+    description: Build Environment
+    required: true
+    default: 'prod'
+  IMAGE_TAG:
+    description: Image Tag
+    required: true
+  
+runs:
+  using: composite
+  steps:
+  - name: Build Docker Image
+    run: |
+      docker build ${{ inputs.BUILD_CONTEXT }} --file ${{ inputs.DOCKERFILE }} \
+        --tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ ${{ inputs.IMAGE_TAG }} }}
+      docker push ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ ${{ inputs.IMAGE_TAG }} }}
+      docker tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ ${{ inputs.IMAGE_TAG }} }} \
+      ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
+      docker push ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
+      echo "Pushed Docker Image ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest"
+    shell: bash

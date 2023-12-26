@@ -1,0 +1,85 @@
+name: Unit Testing
+description: Unit Testing
+inputs:
+  PROJECT_NAME:
+    description: Project Name
+    required: true
+  PYTHON_DEP_PATH:
+    description: Path for the Python Dependencies file
+    required: true
+    default: "./app/requirements.txt"
+  PROJECT_APP_PATH:
+    description: Application Project Root Path
+    required: true
+    default: "./app"
+  PYTHON_VERSION:
+    description: Python Version
+    required: true
+    default: "3.10"
+  SETTINGS_DB_PORT:
+    description: Database Port
+    required: true
+  SETTINGS_DB_NAME:
+    description: Database name
+    required: true
+  SETTINGS_DB_USER:
+    description: Database User
+    required: true
+  SETTINGS_DB_PASSWORD:
+    description: Database password
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: CheckOut Actions
+      uses: actions/checkout@v3
+
+    - name: Setup Python ${{ inputs.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.PYTHON_VERSION }}
+        cache: "pip"
+
+    - name: Install requirements
+      run: |
+        pip install --upgrade pip
+        pip install -r ${{ inputs.PYTHON_DEP_PATH }}
+      shell: bash
+
+    - name: Database Migration
+      run: |
+        python manage.py makemigrations
+        python manage.py migrate
+      working-directory: ${{ inputs.PROJECT_APP_PATH}}
+      env:
+        SETTINGS_DB_HOST: "localhost"
+        SETTINGS_DB_PORT: ${{ inputs.SETTINGS_DB_PORT }}
+        SETTINGS_DB_NAME: ${{ inputs.SETTINGS_DB_NAME }}
+        SETTINGS_DB_USER: ${{ inputs.SETTINGS_DB_USER }}
+        SETTINGS_DB_PASSWORD: ${{ inputs.SETTINGS_DB_PASSWORD }}
+      shell: bash
+
+    - name: Run Test
+      run: |
+        python manage.py test
+        #sudo chown -R runner:runner ./
+        #python manage.py collectstatic --noinput
+        coverage run -m pytest -v -s
+        #coverage run manage.py test
+        coverage report -m
+        coverage xml
+        flake8
+      working-directory: ${{ inputs.PROJECT_APP_PATH}}
+      env:
+        SETTINGS_DB_HOST: "localhost"
+        SETTINGS_DB_PORT: ${{ inputs.SETTINGS_DB_PORT }}
+        SETTINGS_DB_NAME: ${{ inputs.SETTINGS_DB_NAME }}
+        SETTINGS_DB_USER: ${{ inputs.SETTINGS_DB_USER }}
+        SETTINGS_DB_PASSWORD: ${{ inputs.SETTINGS_DB_PASSWORD }}
+      shell: bash
+
+    - name: Pytest coverage comment
+      uses: MishaKav/pytest-coverage-comment@main
+      with:
+        pytest-xml-coverage-path: ${{ inputs.PROJECT_APP_PATH}}/coverage.xml

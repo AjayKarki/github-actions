@@ -1,0 +1,103 @@
+name: Kubernetes Deployment
+description: Deploy Helm chart to Kubernetes
+inputs:
+  VAULT_URL:
+    description: Build Image Tag
+    required: true
+  VAULT_TOKEN: 
+    description: Vault Token
+    required: true
+  VAULT_SECRET_PATH:
+    description: Dev Secret Path
+    required: true
+  VAULT_SECRET_COMMON_PATH:
+    description: K8s common Secret Path
+    required: true
+  IMAGE_TAG:
+    description: Image Tag
+    required: true
+runs:
+  using: composite
+  steps:
+  - name: Import Secrets From Vault
+    uses: hashicorp/vault-action@v2
+    with:
+      url: https://${{ inputs.VAULT_URL }}/
+      token: ${{ inputs.VAULT_TOKEN }}
+      tlsSkipVerify: true
+      secrets: |
+        ${{ inputs.VAULT_SECRET_PATH }} ENVIRONMENT | ENVIRONMENT;
+        ${{ inputs.VAULT_SECRET_PATH }} MASTER_IP | MASTER_IP;
+        ${{ inputs.VAULT_SECRET_PATH }} NODE_PORT | NODE_PORT;
+        ${{ inputs.VAULT_SECRET_PATH }} PROJECT_NAME | PROJECT_NAME;
+        ${{ inputs.VAULT_SECRET_PATH }} VERSION | VERSION;
+        ${{ inputs.VAULT_SECRET_PATH }} ECR_REPOSITORY | ECR_REPOSITORY;
+        ${{ inputs.VAULT_SECRET_COMMON_PATH }}  REGISTRY | REGISTRY;
+        ${{ inputs.VAULT_SECRET_COMMON_PATH }}  AWS_ACCESS_KEY_ID_ECR | AWS_ACCESS_KEY_ID_ECR;
+        ${{ inputs.VAULT_SECRET_COMMON_PATH }}  AWS_SECRET_ACCESS_KEY_ECR | AWS_SECRET_ACCESS_KEY_ECR;
+        ${{ inputs.VAULT_SECRET_COMMON_PATH }}  SSH_KEY | SSH_KEY;
+        ${{ inputs.VAULT_SECRET_COMMON_PATH }}  LOGSTASH_IP | LOGSTASH_IP
+  
+  - name: Install SSH Key
+    uses: shimataro/ssh-key-action@v2
+    with:
+      key: ${{ env.SSH_KEY }}
+      known_hosts: 'SSH KEY'
+      if_key_exists: replace
+  
+  - name: Add Known Hosts
+    run: |
+      ssh-keyscan -H ${{ env.MASTER_IP }} >> ~/.ssh/known_hosts
+    shell: bash
+
+  - name: Extract Kubeconfig file
+    run: |
+      scp root@${{ env.MASTER_IP }}:/etc/rancher/rke2/rke2.yaml kubeconfig.yaml
+      sed -i "s|https://127.0.0.1:6443|https://${{ env.MASTER_IP }}:6443|g" kubeconfig.yaml
+    shell: bash
+  
+  - name: Create Namespace
+    run: |
+      export KUBECONFIG=kubeconfig.yaml
+      if ! kubectl get namespace '${{ env.PROJECT_NAME }}' &> /dev/null; then
+        kubectl create namespace "${{ env.PROJECT_NAME }}"
+      else
+        echo "Namespace ${{ env.PROJECT_NAME }} already exists."
+      fi
+    shell: bash
+  
+  - name: Create configman and secrets
+    run: |
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_URL }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
+      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 > secrets
+      export KUBECONFIG=kubeconfig.yaml
+      if kubectl get configmap app-local-settings --namespace=${{ env.PROJECT_NAME }} &> /dev/null; then
+        kubectl delete configmap app-local-settings --namespace=${{ env.PROJECT_NAME }}
+        kubectl create configmap app-local-settings --from-file=app/config/settings/dev.py --namespace=${{ env.PROJECT_NAME }}
+      else
+        kubectl create configmap app-local-settings --from-file=app/config/settings/dev.py --namespace=${{ env.PROJECT_NAME }}
+      fi
+      if kubectl get secret app-secret --namespace=${{ env.PROJECT_NAME }} &> /dev/null; then
+        kubectl delete secret app-secret --namespace=${{env.PROJECT_NAME}}
+        kubectl create secret generic app-secret --from-file=secrets --namespace=${{env.PROJECT_NAME}}
+      else
+        kubectl create secret generic app-secret --from-file=secrets --namespace=${{env.PROJECT_NAME}}
+      fi
+    shell: bash
+  
+  - name: Login to ECR
+    uses: docker/login-action@v1
+    with:
+      registry: ${{ env.REGISTRY }}
+      username: ${{ env.AWS_ACCESS_KEY_ID_ECR }}
+      password: ${{ env.AWS_SECRET_ACCESS_KEY_ECR }}
+
+  - name: Deploy in Dev K8s Cluster
+    run: |
+      export KUBECONFIG=kubeconfig.yaml
+      helm upgrade ${{ env.PROJECT_NAME }} --install oci://${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }} --version ${{ env.VERSION }} \
+      --namespace=${{ env.PROJECT_NAME }} --set nameOverride=${{ env.PROJECT_NAME }} --set image.repository=dockerhub.khalti.com.np/kwati/${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
+      --set service.nodePort=${{ env.NODE_PORT }} --set dc=dc2 --set app.applogpath=/var/log/app/silkroad.log \
+      --set sidecar.filebeat.logstashIp=${{ env.LOGSTASH_IP }} --set sidecar.filebeat.logstashPort=5045 --set volumeMounts.settings.path=/app/config/settings/dev.py \
+      --set volumeMounts.secrets.path=/app/.env.dir --set volumeMounts.settings.subPath=dev.py --set volumeMounts.settings.file=dev.py
+    shell: bash
