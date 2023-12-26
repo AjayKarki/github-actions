@@ -88,7 +88,7 @@ jobs:
       with:
         DOCKERFILE: 'Dockerfile'
         BUILD_CONTEXT: '.'
-        IMAGE_REPOSITORY: "dockerhub.khalti.office:5000"
+        IMAGE_REPOSITORY: ""
         ENVIRONMENT: 'prod'
         IMAGE_TAG: ${{ github.run_number }}
 
@@ -105,9 +105,9 @@ jobs:
       - name: Deploy Manager Node
         uses: kwati/github-actions/.github/actions/deploy/manager@main
         with:
-          VAULT_URL: "vault.khalti.com.np"
+          VAULT_URL: ""
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-          VAULT_SECRET_PATH: "kwati/silkroad/manager/prod" # [SSH_PRIVATE_KEY, MANAGER_NODE_IP, PROJECT_NAME]
+          VAULT_SECRET_PATH: "" # [SSH_PRIVATE_KEY, MANAGER_NODE_IP, PROJECT_NAME]
 
       - name: Deploy Kubernetes Helm Chart
         uses: kwati/github-actions/.github/actions/deploy/k8s@main
@@ -115,17 +115,17 @@ jobs:
           VAULT_URL: "vault.khalti.com.np"
           IMAGE_TAG: ${{ github.run_number }}
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-          VAULT_SECRET_PATH: "kwati/silkroad/dev" # [ENVIRONMENT, MASTER_IP, NODE_PORT, PROJECT_NAME, VERSION, ECR_REPOSITORY]
-          VAULT_SECRET_COMMON_PATH: "infra/cicd/common"  # [REGISTRY, AWS_ACCESS_KEY_ID_ECR, AWS_SECRET_ACCESS_KEY_ECR, SSH_KEY, LOGSTASH_IP]
+          VAULT_SECRET_PATH: "" # [ENVIRONMENT, MASTER_IP, NODE_PORT, PROJECT_NAME, VERSION, ECR_REPOSITORY]
+          VAULT_SECRET_COMMON_PATH: ""  # [REGISTRY, AWS_ACCESS_KEY_ID_ECR, AWS_SECRET_ACCESS_KEY_ECR, SSH_KEY, LOGSTASH_IP]
 
       - name: Deploy to Swarm Cluster
         uses: kwati/github-actions/.github/actions/deploy/swarm@main
         with:
-          VAULT_URL: "vault.khalti.com.np"
+          VAULT_URL: ""
           IMAGE_TAG: ${{ github.run_number }}
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-          VAULT_SECRET_PATH: "kwati/silkroad/dev" # [ENVIRONMENT, IMAGE_REPOSITORY, PROJECT_NAME, DOCKER_CLUSTER, DOCKER_HOST, DOCKER_PORT]
-          VAULT_SECRET_COMMON_PATH: "infra/cicd/common"  # []
+          VAULT_SECRET_PATH: "" # [ENVIRONMENT, IMAGE_REPOSITORY, PROJECT_NAME, DOCKER_CLUSTER, DOCKER_HOST, DOCKER_PORT]
+          VAULT_SECRET_COMMON_PATH: ""  # []
 
     - name: Send Mail
       if: always()
