@@ -105,14 +105,14 @@ jobs:
       - name: Deploy Manager Node
         uses: kwati/github-actions/actions/deploy/manager@main
         with:
-          VAULT_URL: ""
+          VAULT_SERVER: ""
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
           VAULT_SECRET_PATH: "" # [SSH_PRIVATE_KEY, MANAGER_NODE_IP, PROJECT_NAME]
 
       - name: Deploy Kubernetes Helm Chart
         uses: kwati/github-actions/actions/deploy/k8s@main
         with:
-          VAULT_URL: "vault.khalti.com.np"
+          VAULT_SERVER: "vault.khalti.com.np"
           IMAGE_TAG: ${{ github.run_number }}
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
           VAULT_SECRET_PATH: "" # [ENVIRONMENT, MASTER_IP, NODE_PORT, PROJECT_NAME, VERSION, ECR_REPOSITORY]
@@ -121,7 +121,7 @@ jobs:
       - name: Deploy to Swarm Cluster
         uses: kwati/github-actions/actions/deploy/swarm@main
         with:
-          VAULT_URL: ""
+          VAULT_SERVER: ""
           IMAGE_TAG: ${{ github.run_number }}
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
           VAULT_SECRET_PATH: "" # [ENVIRONMENT, IMAGE_REPOSITORY, PROJECT_NAME, DOCKER_CLUSTER, DOCKER_HOST, DOCKER_PORT]
