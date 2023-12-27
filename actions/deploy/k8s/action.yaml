@@ -1,7 +1,7 @@
 name: Kubernetes Deployment
 description: Deploy Helm chart to Kubernetes
 inputs:
-  VAULT_URL:
+  VAULT_SERVER:
     description: Build Image Tag
     required: true
   VAULT_TOKEN: 
@@ -22,7 +22,7 @@ runs:
   - name: Import Secrets From Vault
     uses: hashicorp/vault-action@v2
     with:
-      url: https://${{ inputs.VAULT_URL }}/
+      url: https://${{ inputs.VAULT_SERVER }}/
       token: ${{ inputs.VAULT_TOKEN }}
       tlsSkipVerify: true
       secrets: |
@@ -68,7 +68,7 @@ runs:
   
   - name: Create configman and secrets
     run: |
-      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_URL }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
       cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 > secrets
       export KUBECONFIG=kubeconfig.yaml
       if kubectl get configmap app-local-settings --namespace=${{ env.PROJECT_NAME }} &> /dev/null; then

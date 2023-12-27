@@ -1,7 +1,7 @@
 name: Manager Deployment
 description: Deploy Manager node
 inputs:
-  VAULT_URL:
+  VAULT_SERVER:
     description: Vault URL
     required: true
   VAULT_TOKEN:
@@ -20,7 +20,7 @@ runs:
   - name: Export Secrets
     uses: hashicorp/vault-action@v2
     with:
-      url: https://${{ inputs.VAULT_URL }}
+      url: https://${{ inputs.VAULT_SERVER }}
       token: ${{ inputs.VAULT_TOKEN }}
       tlsSkipVerify: true
       secrets: |

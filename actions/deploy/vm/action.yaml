@@ -1,7 +1,7 @@
 name: Node Deployment
 description: Deploy Application node
 inputs:
-  VAULT_URL:
+  VAULT_SERVER:
     description: Vault URL
     required: true
   VAULT_TOKEN:
@@ -17,7 +17,7 @@ runs:
     - name: Import Secrets
       uses: hashicorp/vault-action@v2.4.0
       with:
-        url: https://${{ inputs.VAULT_URL }}
+        url: https://${{ inputs.VAULT_SERVER }}
         token: ${{ inputs.VAULT_TOKEN }}
         tlsSkipVerify: true
         secrets: |
@@ -36,7 +36,7 @@ runs:
 
     - name: Create .env file
       run: |
-        curl -sk -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}"  https://${{ inputs.VAULT_URL }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
+        curl -sk -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}"  https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
         cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env
         cp .env ./app/.env
 
