@@ -117,6 +117,13 @@ jobs:
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
           VAULT_SECRET_PATH: "" # [ENVIRONMENT, MASTER_IP, NODE_PORT, PROJECT_NAME, VERSION, ECR_REPOSITORY]
           VAULT_SECRET_COMMON_PATH: ""  # [REGISTRY, AWS_ACCESS_KEY_ID_ECR, AWS_SECRET_ACCESS_KEY_ECR, SSH_KEY, LOGSTASH_IP]
+          VAULT_SECRETS_CICD_PATH: "" 
+          REPLICAS: 6
+          DATACENTER: "dc1"
+          LOCAL_SETTINGS: "false"
+          EXTRA_HELM_ARGS1: "--set app.applogpath=/var/log/app/app.log"
+          EXTRA_HELM_ARGS_2: "--set volumeMounts.settings.path=/app/config/settings/local_settings.py"
+          EXTRA_HELM_ARGS_3: "--set env.SETTINGS_REDIS_HOST=$(cat .env.json | jq -r .SETTINGS_REDIS_HOST)"
 
       - name: Deploy to Swarm Cluster
         uses: kwati/github-actions/actions/deploy/swarm@main
