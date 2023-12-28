@@ -90,10 +90,10 @@ runs:
   
   - name: Create configmap and secrets
     run: |
-      echo "VAULT_SERVER=${VAULT_SERVER}" >> $GITHUB_ENV
-      echo "VAULT_SECRET_PATH=${VAULT_SECRET_PATH}" >> $GITHUB_ENV
-      echo "VAULT_SECRET_COMMON_PATH=${VAULT_SECRET_COMMON_PATH}" >> $GITHUB_ENV
-      echo "LOCAL_SETTINGS=${LOCAL_SETTINGS}" >> $GITHUB_ENV
+      echo "VAULT_SERVER=${{ inputs.VAULT_SERVER }}" >> $GITHUB_ENV
+      echo "VAULT_SECRET_PATH=${{ inputs.VAULT_SECRET_PATH }}" >> $GITHUB_ENV
+      echo "VAULT_SECRET_COMMON_PATH=${{ inputs.VAULT_SECRET_COMMON_PATH }}" >> $GITHUB_ENV
+      echo "LOCAL_SETTINGS=${{ inputs.LOCAL_SETTINGS }}" >> $GITHUB_ENV
       ${{ github.action_path }}/scripts/config.sh
     shell: bash
   
