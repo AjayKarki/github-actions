@@ -58,7 +58,7 @@ runs:
         ${{ inputs.VAULT_SECRETS_CICD_PATH }}  SSH_KEY | SSH_KEY;
         ${{ inputs.VAULT_SECRETS_CICD_PATH }}  REGISTRY | REGISTRY;
         ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_TOKEN | GITLAB_TOKEN;
-        ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_SERVER | GITLAB_SERVER
+        ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_SERVER | GITLAB_SERVER;
   
   - name: Install SSH Key
     uses: shimataro/ssh-key-action@v2
