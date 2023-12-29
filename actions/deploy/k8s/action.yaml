@@ -90,7 +90,9 @@ runs:
   
   - name: Create configmap and secrets
     run: |
-      ${{ github.action_path }}/scripts/config.sh
+      if [${{ env.ECR_REPOSITORY }} == 'python-django']; then
+        ${{ github.action_path }}/scripts/config.sh
+      fi
     shell: bash
     env:
       VAULT_TOKEN: ${{ inputs.VAULT_TOKEN }}
