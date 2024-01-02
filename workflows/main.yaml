@@ -64,6 +64,7 @@ jobs:
         PYTHON_VERSION: ${{ matrix.python-version }}
         PYTHON_DEP_PATH: ${{ env.DEP_PATH }}
         PROJECT_APP_PATH: ${{ env.APP_PATH }}
+        EXTRA_ARGS: "--file production.txt"
 
     - name: Generate Sonarqube Token
       run: |

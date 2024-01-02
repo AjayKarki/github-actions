@@ -20,6 +20,8 @@ inputs:
     description: Application Project Root Path
     required: true
     default: "./app"
+  EXTRA_ARGS:
+    description: Extra arguments of snyk cli
 
 runs:
   using: composite
@@ -43,7 +45,7 @@ runs:
       run: |
         wget -q https://static.snyk.io/cli/latest/snyk-linux && mv ./snyk-linux ./snyk && chmod +x ./snyk
         ./snyk auth ${{ inputs.SNYK_TOKEN }}
-        ./snyk test --command=python3 --project-name=${{ inputs.PROJECT_NAME }} --sarif-file-output=snyk.sarif
+        ./snyk test --command=python3 --project-name=${{ inputs.PROJECT_NAME }} --sarif-file-output=snyk.sarif ${{ inputs.EXTRA_ARGS}}
       working-directory: ${{ inputs.PROJECT_APP_PATH }}
       shell: bash
        
