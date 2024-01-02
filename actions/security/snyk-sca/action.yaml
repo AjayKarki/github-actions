@@ -29,12 +29,6 @@ runs:
     - name: CheckOut Actions
       uses: actions/checkout@v3
 
-    - name: Install OS packages
-      run: |
-        apt upgrade
-        apt install -y curl build-essential curl libpq-dev --no-install-recommends
-      shell: bash
-
     - name: Setup Python ${{ inputs.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
