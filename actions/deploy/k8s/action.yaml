@@ -90,7 +90,7 @@ runs:
   
   - name: Create configmap and secrets
     run: |
-        ${{ github.action_path }}/scripts/config.sh
+      ${{ github.action_path }}/scripts/config.sh
     shell: bash
     env:
       VAULT_TOKEN: ${{ inputs.VAULT_TOKEN }}

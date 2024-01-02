@@ -1,7 +1,7 @@
 name: Manager Workflow Github Action
 description: Manager Deploy Action
 inputs:
-  VAULT_URL:
+  VAULT_SERVER:
     description: Vault URL
     required: true
   VAULT_TOKEN:
@@ -32,7 +32,7 @@ runs:
   
   - name: Import Secrets
     run: |
-      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_URL }}/v1/${{ inputs.VAULT_SECRET_PATH_DEV }} | jq -r .data > .env.json
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH_DEV }} | jq -r .data > .env.json
       cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
     shell: bash
 
