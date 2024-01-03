@@ -14,5 +14,4 @@ cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./a
 
 echo "Generating manager docker compose"
 echo "Current directory: $(pwd)"
-cd $(pwd)/../ansible/
-ansible-playbook -i inventory manager.yml
+ansible-playbook -i $(pwd)/actions/deploy/manager/ansible/inventory $(pwd)/actions/deploy/manager/ansible/manager.yml
