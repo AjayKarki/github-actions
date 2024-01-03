@@ -35,20 +35,18 @@ runs:
           ${{ inputs.VAULT_SECRET_PATH }} DEPLOY_USER | DEPLOY_USER;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} PROJECT_NAME | PROJECT_NAME;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} IMAGE_REPOSITORY | IMAGE_REPOSITORY;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} DJANGO_CONFIG | DJANGO_CONFIG;
           
-
   - name: Generate .env
     run: |
-      ${{ github.action_path }}/scripts/config.sh
+      curl -H "X-Vault-Token: ${VAULT_TOKEN}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
+      curl -H "X-Vault-Token: ${VAULT_TOKEN}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_COMMON_PATH }} | jq -r .data >> .env.json
+      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
     shell: bash
-    env:
-      VAULT_TOKEN: ${{ inputs.VAULT_TOKEN }}
-      VAULT_SERVER: ${{ inputs.VAULT_SERVER }}
-      VAULT_SECRET_PATH: ${{ inputs.VAULT_SECRET_PATH }}
-      VAULT_SECRET_COMMON_PATH: ${{ inputs.VAULT_SECRET_COMMON_PATH }}
   
   - name: Create docker compose
     run: |
+      export CONFIG=${{ env.DJANGO_CONFIG }}
       ansible-playbook -i ${{ github.action_path }}/ansible/inventory ${{ github.action_path }}/ansible/manager.yml
     shell: bash
 
