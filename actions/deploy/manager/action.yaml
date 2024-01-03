@@ -49,8 +49,7 @@ runs:
   
   - name: Create docker compose
     run: |
-      echo ${{ github.workspace }}
-      ansible-playbook -i ansible/inventory ansible/manager.yml
+      ansible-playbook -i ${{ github.action_path }}/ansible/inventory ${{ github.action_path }}/ansible/manager.yml
     shell: bash
 
   - name: Install SSH Key
