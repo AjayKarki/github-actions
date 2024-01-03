@@ -37,7 +37,7 @@ runs:
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} IMAGE_REPOSITORY | IMAGE_REPOSITORY;
           
 
-  - name: Generate .env and docker compose
+  - name: Generate .env
     run: |
       ${{ github.action_path }}/scripts/config.sh
     shell: bash
@@ -46,7 +46,12 @@ runs:
       VAULT_SERVER: ${{ inputs.VAULT_SERVER }}
       VAULT_SECRET_PATH: ${{ inputs.VAULT_SECRET_PATH }}
       VAULT_SECRET_COMMON_PATH: ${{ inputs.VAULT_SECRET_COMMON_PATH }}
-
+  
+  - name: Create docker compose
+    run: |
+      ansible-playbook -i ansible/inventory ansible/manager.yml
+    shell: bash
+    
   - name: Install SSH Key
     uses: shimataro/ssh-key-action@v2
     with:
