@@ -49,9 +49,10 @@ runs:
   
   - name: Create docker compose
     run: |
+      echo ${{ github.workspace }}
       ansible-playbook -i ansible/inventory ansible/manager.yml
     shell: bash
-    
+
   - name: Install SSH Key
     uses: shimataro/ssh-key-action@v2
     with:
