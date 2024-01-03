@@ -1,6 +1,12 @@
 name: Manager Workflow Github Action
 description: Manager Deploy Action
 inputs:
+  IMAGE_TAG:
+    description: Image Tag
+    required: true
+  ENVIRONMENT:
+    description: Environment
+    required: true
   VAULT_SERVER:
     description: Vault URL
     required: true
@@ -10,9 +16,8 @@ inputs:
   VAULT_SECRET_PATH:
     description: Secret Path
     required: true
-  IMAGE_REPOSITORY:
-    description: Image Repository
-    required: true
+  VAULT_SECRET_COMMON_PATH:
+    description: K8s common Secret Path
 
 runs:
   using: composite
@@ -27,13 +32,14 @@ runs:
       secrets: |
           ${{ inputs.VAULT_SECRET_PATH }} SSH_PRIVATE_KEY | SSH_PRIVATE_KEY;
           ${{ inputs.VAULT_SECRET_PATH }} MANAGER_NODE_IP | MANAGER_NODE_IP;
-          ${{ inputs.VAULT_SECRET_PATH }} PROJECT_NAME | PROJECT_NAME;
           ${{ inputs.VAULT_SECRET_PATH }} DEPLOY_USER | DEPLOY_USER;
-  
-  - name: Import Secrets
+          ${{ inputs.VAULT_SECRET_COMMON_PATH}} PROJECT_NAME | PROJECT_NAME;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH}} IMAGE_REPOSITORY | IMAGE_REPOSITORY;
+          
+
+  - name: Generate .env and docker compose
     run: |
-      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH_DEV }} | jq -r .data > .env.json
-      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
+        ${{ github.action_path }}/scripts/config.sh
     shell: bash
 
   - name: Install SSH Key
@@ -52,6 +58,6 @@ runs:
     run: |
       ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }}"
       rsync -avPz --exclude ".git" --exclude ".gitignore" ./ root@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
-      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/kwati/${{ env.PROJECT_NAME }}-dev:latest'
+      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
       ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
     shell: bash

@@ -1,0 +1,8 @@
+---
+- name: Create Manager Compose from Template
+  template:
+    src: "templates/docker-compose-sample.yml"
+    dest: "{{ PWD }}/docker-compose-manager.yml"
+  vars:
+    PWD: "{{ lookup('env', 'PWD') }}"
+    CONFIG: "{{ lookup('env', 'DJANGO_CONFIG') }}"
