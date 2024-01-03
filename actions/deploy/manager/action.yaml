@@ -39,7 +39,7 @@ runs:
 
   - name: Generate .env and docker compose
     run: |
-      ${{ github.action_path }}/scripts/config.sh
+      ${{ github.action_path }}/config.sh
     shell: bash
     env:
       VAULT_TOKEN: ${{ inputs.VAULT_TOKEN }}
