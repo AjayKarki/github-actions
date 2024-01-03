@@ -13,4 +13,5 @@ curl -H "X-Vault-Token: ${VAULT_TOKEN}" https://${VAULT_SERVER}/v1/${VAULT_SECRE
 cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
 
 echo "Generating manager docker compose"
-ansible-playbook -i ../ansible/inventory ../ansible/manager.yml
+cd ../ansible/
+ansible-playbook -i inventory manager.yml
