@@ -32,7 +32,7 @@ if [ "${LOCAL_SETTINGS}" == "true" ]; then
   echo "Creating settings configmap..."
   configmap ${LOCAL_SETTINGS_NAME}
 elif [ "${LOCAL_SETTINGS}" == "false" ]; then
-  echo "Dummy Settings" settings.txt
+  echo "Dummy Settings" > settings.txt
   echo "Creating dummy settings configmap"
   configmap settings.txt
 fi

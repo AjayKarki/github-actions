@@ -105,7 +105,7 @@ runs:
       registry: ${{ env.REGISTRY }}
       username: ${{ env.AWS_ACCESS_KEY_ID_ECR }}
       password: ${{ env.AWS_SECRET_ACCESS_KEY_ECR }}
-
+ 
   - name: Deploy in Dev K8s Cluster
     run: |
       export KUBECONFIG=kubeconfig.yaml

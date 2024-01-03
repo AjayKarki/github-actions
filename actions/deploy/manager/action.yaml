@@ -1,5 +1,5 @@
-name: Manager Deployment
-description: Deploy Manager node
+name: Manager Workflow Github Action
+description: Manager Deploy Action
 inputs:
   VAULT_SERVER:
     description: Vault URL
@@ -10,23 +10,31 @@ inputs:
   VAULT_SECRET_PATH:
     description: Secret Path
     required: true
+  IMAGE_REPOSITORY:
+    description: Image Repository
+    required: true
 
 runs:
   using: composite
   steps:
-  - name: Checkout Repository
-    uses: actions/checkout@v3
-  
+
   - name: Export Secrets
     uses: hashicorp/vault-action@v2
     with:
-      url: https://${{ inputs.VAULT_SERVER }}
+      url: https://${{ inputs.VAULT_URL }}
       token: ${{ inputs.VAULT_TOKEN }}
       tlsSkipVerify: true
       secrets: |
           ${{ inputs.VAULT_SECRET_PATH }} SSH_PRIVATE_KEY | SSH_PRIVATE_KEY;
           ${{ inputs.VAULT_SECRET_PATH }} MANAGER_NODE_IP | MANAGER_NODE_IP;
           ${{ inputs.VAULT_SECRET_PATH }} PROJECT_NAME | PROJECT_NAME;
+          ${{ inputs.VAULT_SECRET_PATH }} DEPLOY_USER | DEPLOY_USER;
+  
+  - name: Import Secrets
+    run: |
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH_DEV }} | jq -r .data > .env.json
+      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
+    shell: bash
 
   - name: Install SSH Key
     uses: shimataro/ssh-key-action@v2
@@ -42,5 +50,8 @@ runs:
   
   - name: Rsync to Manager Node
     run: |
+      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }}"
       rsync -avPz --exclude ".git" --exclude ".gitignore" ./ root@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
+      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/kwati/${{ env.PROJECT_NAME }}-dev:latest'
+      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
     shell: bash

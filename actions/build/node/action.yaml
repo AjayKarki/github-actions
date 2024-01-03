@@ -1,0 +1,38 @@
+name: Frontend Build 
+description: Silkroad Frontend Build
+inputs:
+  DOCKERFILE:
+    description: Dockerfile
+    required: true
+    default: Dockerfile
+  BUILD_CONTEXT:
+    description: Docker build Context
+    required: true
+    default: '.'
+  NEXT_PUBLIC_API_BASE_URL:
+    description: Frontend Base URL
+    required: true
+  IMAGE_REPOSITORY:
+    description: Image repo
+    required: true
+  ENVIRONMENT:
+    description: Build Environment
+    required: true
+  IMAGE_TAG:
+    description: Image Tag
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Build Docker Image
+    run: |
+      docker build ${{ inputs.BUILD_CONTEXT }} --file ${{ inputs.DOCKERFILE }} --tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
+      --build-arg NEXT_PUBLIC_API_BASE_URL=${{ inputs.NEXT_PUBLIC_API_BASE_URL }}
+      docker push ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}
+      docker tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
+      ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
+      echo "Pushed Image ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}"
+    shell: bash
+    
+
