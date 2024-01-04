@@ -5,4 +5,4 @@
     dest: "{{ PWD }}/docker-compose-manager.yml"
   vars:
     PWD: "{{ lookup('env', 'PWD') }}"
-    CONFIG: "{{ lookup('env', 'DJANGO_CONFIG') }}"
+    MODULE: "{{ lookup('env', 'DJANGO_MODULE') }}"

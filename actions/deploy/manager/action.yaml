@@ -4,6 +4,9 @@ inputs:
   IMAGE_TAG:
     description: Image Tag
     required: true
+  IMAGE_REPOSITORY:
+    description: Docker image repository
+    required: true
   ENVIRONMENT:
     description: Environment
     required: true
@@ -34,19 +37,17 @@ runs:
           ${{ inputs.VAULT_SECRET_PATH }} MANAGER_NODE_IP | MANAGER_NODE_IP;
           ${{ inputs.VAULT_SECRET_PATH }} DEPLOY_USER | DEPLOY_USER;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} PROJECT_NAME | PROJECT_NAME;
-          ${{ inputs.VAULT_SECRET_COMMON_PATH }} IMAGE_REPOSITORY | IMAGE_REPOSITORY;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} DJANGO_CONFIG | DJANGO_CONFIG;
           
   - name: Generate .env
     run: |
-      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
       curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_COMMON_PATH }} | jq -r .data >> .env.json
       cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
     shell: bash
   
   - name: Create docker compose
     run: |
-      export CONFIG=${{ env.DJANGO_CONFIG }}
+      export MODULE=${{ env.DJANGO_MODULE }}
       ansible-playbook -i ${{ github.action_path }}/ansible/inventory ${{ github.action_path }}/ansible/manager.yml
     shell: bash
 
@@ -66,6 +67,6 @@ runs:
     run: |
       ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }}"
       rsync -avPz --exclude ".git" --exclude ".gitignore" ./ root@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
-      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
-      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
+      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
+      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
     shell: bash
