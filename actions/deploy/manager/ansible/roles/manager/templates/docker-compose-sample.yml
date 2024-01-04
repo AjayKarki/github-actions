@@ -35,7 +35,6 @@ services:
     container_name: ${PROJECT_NAME}-app
     volumes:
       - ./app:/app
-      - ./logs:/var/log/app
     environment: *environment
     env_file:
       - ./.env
