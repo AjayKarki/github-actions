@@ -92,6 +92,7 @@ jobs:
         IMAGE_REPOSITORY: ""
         ENVIRONMENT: 'prod'
         IMAGE_TAG: ${{ github.run_number }}
+        BUILD_ARGS: "--build-arg NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}"
 
   cd:
     runs-on: ubuntu-latest
