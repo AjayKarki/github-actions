@@ -42,7 +42,7 @@ runs:
           ${{ inputs.VAULT_SECRETS_CICD_PATH }} DEPLOY_USER | DEPLOY_USER;
           ${{ inputs.VAULT_SECRETS_CICD_PATH }} SSH_KEY | SSH_KEY;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} PROJECT_NAME | PROJECT_NAME;
-          ${{ inputs.VAULT_SECRET_COMMON_PATH }} DJANGO_CONFIG | DJANGO_CONFIG;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} DJANGO_MODULE | DJANGO_MODULE;
           
   - name: Generate .env
     run: |
