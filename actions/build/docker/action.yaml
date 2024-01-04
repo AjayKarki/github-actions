@@ -21,6 +21,9 @@ inputs:
   IMAGE_TAG:
     description: Image Tag
     required: true
+  BUILD_ARGS:
+    description:
+    type: string
   
 runs:
   using: composite
@@ -29,7 +32,7 @@ runs:
     run: |
       docker build ${{ inputs.BUILD_CONTEXT }} --file ${{ inputs.DOCKERFILE }} \
         --tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
-        --build-arg ENVIRONMENT=${{ inputs.ENVIRONMENT }}
+        --build-arg ENVIRONMENT=${{ inputs.ENVIRONMENT }} ${{ inputs.BUILD_ARGS }}
       docker push ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}
       docker tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
       ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
