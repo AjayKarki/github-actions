@@ -21,6 +21,9 @@ inputs:
     required: true
   VAULT_SECRET_COMMON_PATH:
     description: K8s common Secret Path
+  VAULT_SECRETS_CICD_PATH:
+    description: Vault Secrets Path
+    required: true
 
 runs:
   using: composite
@@ -33,14 +36,14 @@ runs:
       token: ${{ inputs.VAULT_TOKEN }}
       tlsSkipVerify: true
       secrets: |
-          ${{ inputs.VAULT_SECRET_PATH }} SSH_PRIVATE_KEY | SSH_PRIVATE_KEY;
-          ${{ inputs.VAULT_SECRET_PATH }} MANAGER_NODE_IP | MANAGER_NODE_IP;
-          ${{ inputs.VAULT_SECRET_PATH }} DEPLOY_USER | DEPLOY_USER;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }} DEPLOY_USER | DEPLOY_USER;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }} SSH_KEY | SSH_KEY;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} PROJECT_NAME | PROJECT_NAME;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} DJANGO_CONFIG | DJANGO_CONFIG;
           
   - name: Generate .env
     run: |
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
       curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_COMMON_PATH }} | jq -r .data >> .env.json
       cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
     shell: bash
@@ -54,19 +57,19 @@ runs:
   - name: Install SSH Key
     uses: shimataro/ssh-key-action@v2
     with:
-      key: ${{ env.SSH_PRIVATE_KEY }}
+      key: ${{ env.SSH_KEY }}
       known_hosts: 'SSH Key'
       if_key_exists: replace
   
   - name: Adding Known Hosts
     run: |
-      ssh-keyscan -H ${{ env.MANAGER_NODE_IP }} >> ~/.ssh/known_hosts
+      ssh-keyscan -H ${{ inputs.MANAGER_NODE_IP }} >> ~/.ssh/known_hosts
     shell: bash
   
   - name: Rsync to Manager Node
     run: |
-      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }}"
+      ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }} && rm -r /opt/${{ env.PROJECT_NAME }}/"
       rsync -avPz --exclude ".git" --exclude ".gitignore" ./ root@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
-      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
-      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
+      ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
+      ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
     shell: bash
