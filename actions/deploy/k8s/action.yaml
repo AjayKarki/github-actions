@@ -22,6 +22,7 @@ inputs:
   REPLICAS:
     description: Default Replica
     required: true
+    default: '1'
   DATACENTER:
     description: Datacenter
     required: true
@@ -109,7 +110,7 @@ runs:
   - name: Deploy to K8s Cluster
     run: |
       export KUBECONFIG=kubeconfig.yaml
-      helm upgrade ${{ env.PROJECT_NAME }} --install oci://${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }} --version ${{ env.VERSION }} \
+      helm upgrade ${{ env.PROJECT_NAME }} --install oci://${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }} --version ${{ env.VERSION }} --set replicas=${{ inputs.REPLICAS }} \
       --namespace=${{ env.PROJECT_NAME }} --set nameOverride=${{ env.PROJECT_NAME }} --set image.repository=${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ env.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
       --set service.nodePort=${{ env.NODE_PORT }} --set dc=${{ inputs.DATACENTER }} --set sidecar.filebeat.logstashIp=${{ env.LOGSTASH_IP }} --set sidecar.filebeat.logstashPort=5045 ${{ inputs.EXTRA_HELM_ARGS_1 }} ${{ inputs.EXTRA_HELM_ARGS_2 }} ${{ inputs.EXTRA_HELM_ARGS_3 }}
     shell: bash
