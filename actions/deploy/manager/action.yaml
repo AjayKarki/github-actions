@@ -73,6 +73,7 @@ runs:
     run: |
       ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }} && rm -rf /opt/${{ env.PROJECT_NAME }}/*"
       rsync -avpPz --exclude ".git" --exclude ".gitignore" ./ ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
-      ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
+      ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}' \
+      && chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }}
       #ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
     shell: bash
