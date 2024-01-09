@@ -33,7 +33,7 @@ services:
       - --log-x-forwarded-for
     container_name: ${PROJECT_NAME}-app
     volumes:
-      - ./app:/app
+      - ./:/app
       #- ./${START_SCRIPT_PATH}:/app/start.sh
     environment: *environment
     env_file:
