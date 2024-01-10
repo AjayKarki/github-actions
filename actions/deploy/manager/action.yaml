@@ -62,7 +62,10 @@ runs:
   - name: Download Local Settings from gitlab
     run: |
       if [ "${{ inputs.LOCAL_SETTINGS }}" == "true" ]; then
+        echo "Downloading Local Settings File" 
         curl -H "PRIVATE-TOKEN: ${{ env.GITLAB_TOKEN }}" "${{ env.GITLAB_SERVER }}/api/v4/projects/${{ env.GITLAB_PROJECT_NUMBER }}/repository/files/${{env.ENVIRONMENT}}%2F${{ env.LOCAL_SETTINGS_NAME }}/raw?ref=main" -o ${{ env.PROJECT_NAME }}/${{ env.DJANGO_MODULE }}/settings/${{ env.LOCAL_SETTINGS_NAME }}
+      else
+        echo "Skipping Local Setting"
       fi
     shell: bash
 
