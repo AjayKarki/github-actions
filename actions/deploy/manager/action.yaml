@@ -61,7 +61,7 @@ runs:
 
   - name: Download Local Settings from gitlab
     run: |
-      if [ ${{ inputs.LOCAL_SETTINGS }} == 'true' ]; then
+      if [ ${{ inputs.LOCAL_SETTINGS }} == true ]; then
         curl -H "PRIVATE-TOKEN: ${{ env.GITLAB_TOKEN }}" "https://${{ env.GITLAB_SERVER }}/api/v4/projects/${{ env.GITLAB_PROJECT_NUMBER }}/repository/files/${{env.ENVIRONMENT}}%2F${{ env.LOCAL_SETTINGS_NAME }}/raw?ref=main" -o e5/config/settings/${{ env.LOCAL_SETTINGS_NAME }}
       fi
     shell: bash
