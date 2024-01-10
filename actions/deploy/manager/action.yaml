@@ -27,6 +27,8 @@ inputs:
   VAULT_SECRETS_CICD_PATH:
     description: Vault Secrets Path
     required: true
+  LOCAL_SETTINGS:
+    description: Enable if local Setting is needed to download from gitlab
 
 runs:
   using: composite
@@ -39,10 +41,15 @@ runs:
       token: ${{ inputs.VAULT_TOKEN }}
       tlsSkipVerify: true
       secrets: |
-          ${{ inputs.VAULT_SECRETS_CICD_PATH }} DEPLOY_USER | DEPLOY_USER;
-          ${{ inputs.VAULT_SECRETS_CICD_PATH }} SSH_KEY | SSH_KEY;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} PROJECT_NAME | PROJECT_NAME;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} DJANGO_MODULE | DJANGO_MODULE;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} GITLAB_PROJECT_NUMBER | GITLAB_PROJECT_NUMBER;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} LOCAL_SETTINGS_NAME | LOCAL_SETTINGS_NAME;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} ENVIRONMENT | ENVIRONMENT;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }} DEPLOY_USER | DEPLOY_USER;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }} SSH_KEY | SSH_KEY;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_TOKEN | GITLAB_TOKEN;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_SERVER | GITLAB_SERVER;
           
   - name: Generate .env
     run: |
@@ -51,7 +58,14 @@ runs:
       cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env
       cat .common.env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> .env && cp .env ./app
     shell: bash
-  
+
+  - name: Download Local Settings from gitlab
+    run: |
+      if ['${{ inputs.LOCAL_SETTINGS }}' == 'true']; then
+        curl -H "PRIVATE-TOKEN: ${{ env.GITLAB_TOKEN }}" "https://${{ env.GITLAB_SERVER }}/api/v4/projects/${{ env.GITLAB_PROJECT_NUMBER }}/repository/files/${{env.ENVIRONMENT}}%2F${{ env.LOCAL_SETTINGS_NAME }}/raw?ref=main" -o e5/config/settings/${{ env.LOCAL_SETTINGS_NAME }}
+      fi
+    shell: bash
+    
   - name: Create docker compose
     run: |
       export MODULE=${{ env.DJANGO_MODULE }}
