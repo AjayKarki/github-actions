@@ -47,8 +47,9 @@ runs:
   - name: Generate .env
     run: |
       curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
-      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_COMMON_PATH }} | jq -r .data >> .env.json
-      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_COMMON_PATH }} | jq -r .data > .common.env.json
+      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env
+      cat .common.env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> .env && cp .env ./app
     shell: bash
   
   - name: Create docker compose
