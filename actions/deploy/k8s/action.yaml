@@ -83,10 +83,10 @@ runs:
   - name: Create Namespace
     run: |
       export KUBECONFIG=kubeconfig.yaml
-      if ! kubectl get namespace '${{ env.PROJECT_NAME }}' &> /dev/null; then
-        kubectl create namespace "${{ env.PROJECT_NAME }}"
+      if ! kubectl get namespace '${{ env.NAMESPACE }}' &> /dev/null; then
+        kubectl create namespace "${{ env.NAMESPACE }}"
       else
-        echo "Namespace ${{ env.PROJECT_NAME }} already exists."
+        echo "Namespace ${{ env.NAMESPACE }} already exists."
       fi
     shell: bash
   
