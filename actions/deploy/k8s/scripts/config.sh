@@ -13,16 +13,17 @@ GITLAB_SERVER=$GITLAB_SERVER
 GITLAB_PROJECT_NUMBER=$GITLAB_PROJECT_NUMBER
 LOCAL_SETTINGS=$LOCAL_SETTINGS
 LOCAL_SETTINGS_NAME=$LOCAL_SETTINGS_NAME
+NAMESPACE=$NAMESPACE
 
 export KUBECONFIG=kubeconfig.yaml
 
 function configmap() {
   LOCAL_SETTINGS_NAME=$1
-  if kubectl get configmaps app-local-settings --namespace=${PROJECT_NAME} &> /dev/null; then
-    kubectl delete configmap app-local-settings --namespace=${PROJECT_NAME}
-    kubectl create configmap app-local-settings --from-file=${LOCAL_SETTINGS_NAME} --namespace=${PROJECT_NAME}
+  if kubectl get configmaps app-local-settings --namespace=${NAMESPACE} &> /dev/null; then
+    kubectl delete configmap app-local-settings --namespace=${NAMESPACE}
+    kubectl create configmap app-local-settings --from-file=${LOCAL_SETTINGS_NAME} --namespace=${NAMESPACE}
   else
-    kubectl create configmap app-local-settings --from-file=${LOCAL_SETTINGS_NAME} --namespace=${PROJECT_NAME}
+    kubectl create configmap app-local-settings --from-file=${LOCAL_SETTINGS_NAME} --namespace=${NAMESPACE}
   fi
 }
 
@@ -44,11 +45,11 @@ cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 > secrets
 cat .common.env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 >> secrets
 
 
-if kubectl get secret app-secret --namespace=${PROJECT_NAME} &> /dev/null; then
+if kubectl get secret app-secret --namespace=${NAMESPACE} &> /dev/null; then
   echo "Creating secrets from variables..."
-  kubectl delete secret app-secret --namespace=${PROJECT_NAME}
-  kubectl create secret generic app-secret --from-file=secrets --namespace=${PROJECT_NAME}
+  kubectl delete secret app-secret --namespace=${NAMESPACE}
+  kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
 else
   echo "Creating secrets from variables..."
-  kubectl create secret generic app-secret --from-file=secrets --namespace=${PROJECT_NAME}
+  kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
 fi
