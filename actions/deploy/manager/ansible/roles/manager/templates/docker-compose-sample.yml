@@ -34,7 +34,6 @@ services:
     container_name: ${PROJECT_NAME}-app
     volumes:
       - ./:/app
-      #- ./${START_SCRIPT_PATH}:/app/start.sh
     environment: *environment
     env_file:
       - ./.env
