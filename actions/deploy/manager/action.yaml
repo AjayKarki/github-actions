@@ -46,6 +46,7 @@ runs:
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} GITLAB_PROJECT_NUMBER | GITLAB_PROJECT_NUMBER;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} LOCAL_SETTINGS_NAME | LOCAL_SETTINGS_NAME;
           ${{ inputs.VAULT_SECRET_COMMON_PATH }} ENVIRONMENT | ENVIRONMENT;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} MANAGER_NODE_IP; | MANAGER_NODE_IP;
           ${{ inputs.VAULT_SECRETS_CICD_PATH }} DEPLOY_USER | DEPLOY_USER;
           ${{ inputs.VAULT_SECRETS_CICD_PATH }} SSH_KEY | SSH_KEY;
           ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_TOKEN | GITLAB_TOKEN;
@@ -84,13 +85,13 @@ runs:
   
   - name: Adding Known Hosts
     run: |
-      ssh-keyscan -H ${{ inputs.MANAGER_NODE_IP }} >> ~/.ssh/known_hosts
+      ssh-keyscan -H ${{ env.MANAGER_NODE_IP }} >> ~/.ssh/known_hosts
     shell: bash
   
   - name: Rsync to Manager Node
     run: |
-      ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }} && rm -rf /opt/${{ env.PROJECT_NAME }}/*"
-      rsync -avpPz --exclude ".git" --exclude ".gitignore" ./ ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
-      ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
-      #ssh ${{ env.DEPLOY_USER }}@${{ inputs.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
+      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }} && rm -rf /opt/${{ env.PROJECT_NAME }}/*"
+      rsync -avpPz --exclude ".git" --exclude ".gitignore" ./ ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
+      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
+      #ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
     shell: bash
