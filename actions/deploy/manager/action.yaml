@@ -10,9 +10,6 @@ inputs:
   ENVIRONMENT:
     description: Environment
     required: true
-  MANAGER_NODE_IP:
-    description: ip of managernode
-    required: true
   VAULT_SERVER:
     description: Vault URL
     required: true
