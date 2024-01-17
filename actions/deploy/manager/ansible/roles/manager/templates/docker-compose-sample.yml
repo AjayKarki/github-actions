@@ -1,0 +1,43 @@
+x-django-image: &image 
+  ${IMAGE_REPOSITORY}/kwati/${PROJECT_NAME}-${ENVIRONMENT}:latest
+
+x-django-environment: &environment
+    SETTINGS_DB_HOST: ${SETTINGS_DB_HOST}
+    SETTINGS_DB_PORT: ${SETTINGS_DB_PORT}
+    SETTINGS_DB_NAME: ${SETTINGS_DB_NAME}
+    SETTINGS_DB_USER: ${SETTINGS_DB_USER}
+    SETTINGS_DB_PASSWORD: ${SETTINGS_DB_PASSWORD}
+version: "3.7"
+services:
+  app:
+    image: *image
+    entrypoint:
+      - uwsgi
+      - --http 
+      - 0.0.0.0:20001
+      - --module
+      - {{ MODULE }}.wsgi:application
+      - --processes
+      - '4'
+      - --threads
+      - '2'
+      - --buffer-size
+      - '32768'
+      - --enable-threads
+      - --vacuum
+      - --logto
+      - /var/log/app/uwsgi.log
+      - --log-4xx
+      - --log-5xx
+      - --log-slow
+      - --log-x-forwarded-for
+    container_name: ${PROJECT_NAME}-app
+    volumes:
+      - ./:/app
+    environment: *environment
+    env_file:
+      - ./.env
+    dns:
+      - 172.17.3.91
+      - 172.17.3.94
+      - 172.17.3.95

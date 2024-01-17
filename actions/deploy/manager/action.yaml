@@ -1,6 +1,15 @@
 name: Manager Workflow Github Action
 description: Manager Deploy Action
 inputs:
+  IMAGE_TAG:
+    description: Image Tag
+    required: true
+  IMAGE_REPOSITORY:
+    description: Docker image repository
+    required: true
+  ENVIRONMENT:
+    description: Environment
+    required: true
   VAULT_SERVER:
     description: Vault URL
     required: true
@@ -10,9 +19,13 @@ inputs:
   VAULT_SECRET_PATH:
     description: Secret Path
     required: true
-  IMAGE_REPOSITORY:
-    description: Image Repository
+  VAULT_SECRET_COMMON_PATH:
+    description: K8s common Secret Path
+  VAULT_SECRETS_CICD_PATH:
+    description: Vault Secrets Path
     required: true
+  LOCAL_SETTINGS:
+    description: Enable if local Setting is needed to download from gitlab
 
 runs:
   using: composite
@@ -25,21 +38,45 @@ runs:
       token: ${{ inputs.VAULT_TOKEN }}
       tlsSkipVerify: true
       secrets: |
-          ${{ inputs.VAULT_SECRET_PATH }} SSH_PRIVATE_KEY | SSH_PRIVATE_KEY;
-          ${{ inputs.VAULT_SECRET_PATH }} MANAGER_NODE_IP | MANAGER_NODE_IP;
-          ${{ inputs.VAULT_SECRET_PATH }} PROJECT_NAME | PROJECT_NAME;
-          ${{ inputs.VAULT_SECRET_PATH }} DEPLOY_USER | DEPLOY_USER;
-  
-  - name: Import Secrets
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} PROJECT_NAME | PROJECT_NAME;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} DJANGO_MODULE | DJANGO_MODULE;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} GITLAB_PROJECT_NUMBER | GITLAB_PROJECT_NUMBER;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} LOCAL_SETTINGS_NAME | LOCAL_SETTINGS_NAME;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} ENVIRONMENT | ENVIRONMENT;
+          ${{ inputs.VAULT_SECRET_COMMON_PATH }} MANAGER_NODE_IP; | MANAGER_NODE_IP;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }} DEPLOY_USER | DEPLOY_USER;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }} SSH_KEY | SSH_KEY;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_TOKEN | GITLAB_TOKEN;
+          ${{ inputs.VAULT_SECRETS_CICD_PATH }}  GITLAB_SERVER | GITLAB_SERVER;
+          
+  - name: Generate .env
     run: |
-      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH_DEV }} | jq -r .data > .env.json
-      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env && cp .env ./app
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_PATH }} | jq -r .data > .env.json
+      curl -H "X-Vault-Token: ${{ inputs.VAULT_TOKEN }}" https://${{ inputs.VAULT_SERVER }}/v1/${{ inputs.VAULT_SECRET_COMMON_PATH }} | jq -r .data > .common.env.json
+      cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' > .env
+      cat .common.env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> .env && cp .env ./app
+    shell: bash
+
+  - name: Download Local Settings from gitlab
+    run: |
+      if [ "${{ inputs.LOCAL_SETTINGS }}" == "true" ]; then
+        echo "Downloading Local Settings File" 
+        curl -H "PRIVATE-TOKEN: ${{ env.GITLAB_TOKEN }}" "${{ env.GITLAB_SERVER }}/api/v4/projects/${{ env.GITLAB_PROJECT_NUMBER }}/repository/files/${{env.ENVIRONMENT}}%2F${{ env.LOCAL_SETTINGS_NAME }}/raw?ref=main" -o ${{ env.PROJECT_NAME }}/${{ env.DJANGO_MODULE }}/settings/${{ env.LOCAL_SETTINGS_NAME }}
+      else
+        echo "Skipping Local Setting"
+      fi
+    shell: bash
+
+  - name: Create docker compose
+    run: |
+      export MODULE=${{ env.DJANGO_MODULE }}
+      ansible-playbook -i ${{ github.action_path }}/ansible/inventory ${{ github.action_path }}/ansible/manager.yml
     shell: bash
 
   - name: Install SSH Key
     uses: shimataro/ssh-key-action@v2
     with:
-      key: ${{ env.SSH_PRIVATE_KEY }}
+      key: ${{ env.SSH_KEY }}
       known_hosts: 'SSH Key'
       if_key_exists: replace
   
@@ -50,8 +87,8 @@ runs:
   
   - name: Rsync to Manager Node
     run: |
-      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }}"
-      rsync -avPz --exclude ".git" --exclude ".gitignore" ./ root@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
-      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/kwati/${{ env.PROJECT_NAME }}-dev:latest'
-      ssh root@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
+      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} "chown -R ${{ env.DEPLOY_USER }}: /opt/${{ env.PROJECT_NAME }} && rm -rf /opt/${{ env.PROJECT_NAME }}/*"
+      rsync -avpPz --exclude ".git" --exclude ".gitignore" ./ ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }}:/opt/${{ env.PROJECT_NAME }}
+      ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker pull ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}'
+      #ssh ${{ env.DEPLOY_USER }}@${{ env.MANAGER_NODE_IP }} 'cd /opt/${{ env.PROJECT_NAME }} && docker-compose -f docker-compose-manager.yml down && docker-compose -f docker-compose-manager.yml up -d'
     shell: bash
