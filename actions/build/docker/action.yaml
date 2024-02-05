@@ -1,23 +1,32 @@
 name: Build Docker Image
 description: Build and Push Docker Image
 inputs:
+  VAULT_SERVER:
+    description: Build Image Tag
+    required: true
+  VAULT_TOKEN: 
+    description: Vault Token
+    required: true
+  VAULT_SECRET_PATH:
+    description: Secret Path
+    required: true
+  VAULT_SECRETS_CICD_PATH:
+    description: Vault Secrets Path
+    required: true
   DOCKERFILE:
     description: Dockerfile name
     required: true
     type: string
     default: 'Dockerfile'
+  ENVIRONMENT:
+    description: Build Environment
+    required: true
+    default: 'prod'
   BUILD_CONTEXT:
     description: Docker build context
     required: true
     type: string
     default: '.'
-  IMAGE_REPOSITORY:
-    description: Image Repository
-    required: true
-  ENVIRONMENT:
-    description: Build Environment
-    required: true
-    default: 'prod'
   IMAGE_TAG:
     description: Image Tag
     required: true
@@ -28,14 +37,42 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Import Secrets From Vault
+    uses: hashicorp/vault-action@v2
+    with:
+      url: https://${{ inputs.VAULT_SERVER }}/
+      token: ${{ inputs.VAULT_TOKEN }}
+      tlsSkipVerify: true
+      secrets: |
+        ${{ inputs.VAULT_SECRETS_CICD_PATH }} KCR_USER | KCR_USER;        
+        ${{ inputs.VAULT_SECRETS_CICD_PATH }} KCR_PASSWORD | KCR_PASSWORD;
+        ${{ inputs.VAULT_SECRETS_CICD_PATH }} IMAGE_REPOSITORY | IMAGE_REPOSITORY;
+
+  - name: Create project and policies in registry
+    run: |
+      ${{ github.action_path }}/scripts/config.sh
+    shell: bash
+    env:
+      VAULT_TOKEN: ${{ inputs.VAULT_TOKEN }}
+      VAULT_SERVER: ${{ inputs.VAULT_SERVER }}
+      VAULT_SECRET_PATH: ${{ inputs.VAULT_SECRET_PATH }}
+      VAULT_SECRETS_CICD_PATH: ${{ inputs.VAULT_SECRETS_CICD_PATH }}
+      
+  - name: Login to KCR
+    uses: docker/login-action@v1
+    with:
+      registry: ${{ env.IMAGE_REPOSITORY }}
+      username: ${{ env.KCR_USER }}
+      password: ${{ env.KCR_PASSWORD }}
+      
   - name: Build Docker Image
     run: |
       docker build ${{ inputs.BUILD_CONTEXT }} --file ${{ inputs.DOCKERFILE }} \
-        --tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
+        --tag ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
         --build-arg ENVIRONMENT=${{ inputs.ENVIRONMENT }} ${{ inputs.BUILD_ARGS }}
-      docker push ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}
-      docker tag ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
-      ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
-      docker push ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
-      echo "Pushed Docker Image ${{ inputs.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest"
+      docker push ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }}
+      docker tag ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:${{ inputs.IMAGE_TAG }} \
+      ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
+      docker push ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest
+      echo "Pushed Docker Image ${{ env.IMAGE_REPOSITORY }}/${{ github.repository }}-${{ inputs.ENVIRONMENT }}:latest"
     shell: bash

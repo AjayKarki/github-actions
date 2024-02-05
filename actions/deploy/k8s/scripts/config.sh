@@ -14,6 +14,9 @@ GITLAB_PROJECT_NUMBER=$GITLAB_PROJECT_NUMBER
 LOCAL_SETTINGS=$LOCAL_SETTINGS
 LOCAL_SETTINGS_NAME=$LOCAL_SETTINGS_NAME
 NAMESPACE=$NAMESPACE
+KCR_USER=$KCR_USER
+KCR_PASSWORD=$KCR_PASSWORD
+IMAGE_REPOSITORY=$IMAGE_REPOSITORY
 
 export KUBECONFIG=kubeconfig.yaml
 
@@ -52,4 +55,13 @@ if kubectl get secret app-secret --namespace=${NAMESPACE} &> /dev/null; then
 else
   echo "Creating secrets from variables..."
   kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
+fi
+
+if kubectl get secret kcr-secret --namespace=${NAMESPACE} &> /dev/null; then
+  echo "Creating kcr-secrets from variables..."
+  kubectl delete secret kcr-secret --namespace=${NAMESPACE}
+  kubectl create secret docker-registry kcr-secret --namespace=${NAMESPACE} --docker-server=${IMAGE_REPOSITORY} --docker-username=${KCR_USER} --docker-password=${KCR_PASSWORD}
+else
+  echo "Creating kcr-secrets from variables..."
+  kubectl create secret docker-registry kcr-secret --namespace=${NAMESPACE} --docker-server=${IMAGE_REPOSITORY} --docker-username=${KCR_USER} --docker-password=${KCR_PASSWORD}
 fi
