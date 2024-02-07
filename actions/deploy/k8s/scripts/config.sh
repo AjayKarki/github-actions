@@ -17,6 +17,7 @@ NAMESPACE=$NAMESPACE
 KCR_USER=$KCR_USER
 KCR_PASSWORD=$KCR_PASSWORD
 IMAGE_REPOSITORY=$IMAGE_REPOSITORY
+ECR_REPOSITORY=$ECR_REPOSITORY
 
 export KUBECONFIG=kubeconfig.yaml
 
@@ -41,21 +42,24 @@ elif [ "${LOCAL_SETTINGS}" == "false" ]; then
   configmap settings.txt
 fi
 
-echo "Extracting variables from Vault..."
-curl -H "X-Vault-Token: ${VAULT_TOKEN}" "https://${VAULT_SERVER}/v1/${VAULT_SECRET_PATH}" | jq -r .data > .env.json
-curl -H "X-Vault-Token: ${VAULT_TOKEN}" "https://${VAULT_SERVER}/v1/${VAULT_SECRET_COMMON_PATH}" | jq -r .data > .common.env.json
-cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 > secrets
-cat .common.env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 >> secrets
+if [ "${ECR_REPOSITORY}" == "python-django" ]; then
+    echo "Extracting variables from Vault..."
+    curl -H "X-Vault-Token: ${VAULT_TOKEN}" "https://${VAULT_SERVER}/v1/${VAULT_SECRET_PATH}" | jq -r .data > .env.json
+    curl -H "X-Vault-Token: ${VAULT_TOKEN}" "https://${VAULT_SERVER}/v1/${VAULT_SECRET_COMMON_PATH}" | jq -r .data > .common.env.json
+    cat .env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 > secrets
+    cat .common.env.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' | base64 >> secrets
 
-
-if kubectl get secret app-secret --namespace=${NAMESPACE} &> /dev/null; then
-  echo "Creating secrets from variables..."
-  kubectl delete secret app-secret --namespace=${NAMESPACE}
-  kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
+    if kubectl get secret app-secret --namespace=${NAMESPACE} &> /dev/null; then
+      echo "Creating secrets from variables..."
+      kubectl delete secret app-secret --namespace=${NAMESPACE}
+      kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
+    else
+      echo "Creating secrets from variables..."
+      kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
+    fi
 else
-  echo "Creating secrets from variables..."
-  kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
-fi
+   echo "The current chart is frontend"
+fi 
 
 if kubectl get secret kcr-secret --namespace=${NAMESPACE} &> /dev/null; then
   echo "Creating kcr-secrets from variables..."

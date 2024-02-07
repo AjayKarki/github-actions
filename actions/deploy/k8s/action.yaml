@@ -102,6 +102,7 @@ runs:
       VAULT_SECRET_PATH: ${{ inputs.VAULT_SECRET_PATH }}
       VAULT_SECRET_COMMON_PATH: ${{ inputs.VAULT_SECRET_COMMON_PATH }}
       LOCAL_SETTINGS: ${{ inputs.LOCAL_SETTINGS }}
+      ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
   
   - name: Login to ECR
     uses: docker/login-action@v1
