@@ -58,7 +58,7 @@ if [ "${ECR_REPOSITORY}" == "python-django" ]; then
       kubectl create secret generic app-secret --from-file=secrets --namespace=${NAMESPACE}
     fi
 else
-   echo "The current chart is ${ECR_REPOSITORY}"
+   echo "The current chart is frontend"
 fi 
 
 if kubectl get secret kcr-secret --namespace=${NAMESPACE} &> /dev/null; then
