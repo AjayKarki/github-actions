@@ -30,16 +30,19 @@ function configmap() {
     kubectl create configmap app-local-settings --from-file=${LOCAL_SETTINGS_NAME} --namespace=${NAMESPACE}
   fi
 }
-
-if [ "${LOCAL_SETTINGS}" == "true" ]; then
-  echo "Downloading Latest Settings file..."
-  curl -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${GITLAB_SERVER}/api/v4/projects/${GITLAB_PROJECT_NUMBER}/repository/files/${ENVIRONMENT}%2F${LOCAL_SETTINGS_NAME}/raw?ref=main" -o ${LOCAL_SETTINGS_NAME}
-  echo "Creating settings configmap..."
-  configmap ${LOCAL_SETTINGS_NAME}
-elif [ "${LOCAL_SETTINGS}" == "false" ]; then
-  echo "Dummy Settings" > settings.txt
-  echo "Creating dummy settings configmap"
-  configmap settings.txt
+if [ "${ECR_REPOSITORY}" == "python-django "]; then
+    if [ "${LOCAL_SETTINGS}" == "true" ]; then
+      echo "Downloading Latest Settings file..."
+      curl -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${GITLAB_SERVER}/api/v4/projects/${GITLAB_PROJECT_NUMBER}/repository/files/${ENVIRONMENT}%2F${LOCAL_SETTINGS_NAME}/raw?ref=main" -o ${LOCAL_SETTINGS_NAME}
+      echo "Creating settings configmap..."
+      configmap ${LOCAL_SETTINGS_NAME}
+    elif [ "${LOCAL_SETTINGS}" == "false" ]; then
+      echo "Dummy Settings" > settings.txt
+      echo "Creating dummy settings configmap"
+      configmap settings.txt
+    fi
+else  
+  echo "Skipping ConfigMap"
 fi
 
 if [ "${ECR_REPOSITORY}" == "python-django" ]; then
