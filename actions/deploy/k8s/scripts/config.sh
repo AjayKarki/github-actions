@@ -34,7 +34,7 @@ function configmap() {
 # Get Gitlab Token Status. If 200, valid token else expired or wrong token
 
 
-if [ "${ECR_REPOSITORY}" == "python-django "]; then
+if [ "${ECR_REPOSITORY}" == "python-django" ]; then
     if [ "${LOCAL_SETTINGS}" == "true" ]; then
       if [ "${GITLAB_TOKEN_STATUS}" == "200" ]; then
         echo "Downloading Latest Settings file..."
