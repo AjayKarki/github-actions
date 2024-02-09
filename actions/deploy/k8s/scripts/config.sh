@@ -11,6 +11,7 @@ VAULT_SECRET_COMMON_PATH=$VAULT_SECRET_COMMON_PATH
 GITLAB_TOKEN=$GITLAB_TOKEN
 GITLAB_SERVER=$GITLAB_SERVER
 GITLAB_PROJECT_NUMBER=$GITLAB_PROJECT_NUMBER
+GITLAB_TOKEN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "https://${GITLAB_SERVER}/api/v4/user")
 LOCAL_SETTINGS=$LOCAL_SETTINGS
 LOCAL_SETTINGS_NAME=$LOCAL_SETTINGS_NAME
 NAMESPACE=$NAMESPACE
@@ -31,7 +32,7 @@ function configmap() {
   fi
 }
 # Get Gitlab Token Status. If 200, valid token else expired or wrong token
-GITLAB_TOKEN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "https://$GITLAB_SERVER/api/v4/user")
+
 
 if [ "${ECR_REPOSITORY}" == "python-django "]; then
     if [ "${LOCAL_SETTINGS}" == "true" ]; then
