@@ -8,6 +8,7 @@ VAULT_TOKEN=$VAULT_TOKEN
 VAULT_SERVER=$VAULT_SERVER
 VAULT_SECRET_PATH=$VAULT_SECRET_PATH
 VAULT_SECRET_COMMON_PATH=$VAULT_SECRET_COMMON_PATH
+VAULT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Vault-Token: ${VAULT_TOKEN}" --insecure https://${VAULT_SERVER}/v1/sys/ha-status)
 GITLAB_TOKEN=$GITLAB_TOKEN
 GITLAB_SERVER=$GITLAB_SERVER
 GITLAB_PROJECT_NUMBER=$GITLAB_PROJECT_NUMBER
@@ -31,8 +32,6 @@ function configmap() {
     kubectl create configmap app-local-settings --from-file=${LOCAL_SETTINGS_NAME} --namespace=${NAMESPACE}
   fi
 }
-# Get Gitlab Token Status. If 200, valid token else expired or wrong token
-
 
 if [ "${ECR_REPOSITORY}" == "python-django" ]; then
     if [ "${LOCAL_SETTINGS}" == "true" ]; then
@@ -53,10 +52,6 @@ if [ "${ECR_REPOSITORY}" == "python-django" ]; then
 else  
   echo "Skipping ConfigMap"
 fi
-
-# Check for Vault Status. If 200, create secrets else exit
-VAULT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Vault-Token: ${VAULT_TOKEN}" \
-              --insecure https://${VAULT_SERVER}/v1/sys/ha-status)
 
 if [ "${ECR_REPOSITORY}" == "python-django" ]; then
   if [ "${VAULT_STATUS}" == "200" ]; then
